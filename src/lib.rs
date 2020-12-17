@@ -5,7 +5,6 @@ use std::sync::{Mutex, Arc, MutexGuard};
 
 enum Maybe<T> {
     Real(T),
-    Fake,
 }
 
 struct TailedFileRaw(BufReader<File>);
@@ -127,14 +126,12 @@ impl<R: io::Read> io::Read for Maybe<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match *self {
             Maybe::Real(ref mut r) => handle_ebadf(r.read(buf), 0),
-            Maybe::Fake => Ok(0),
         }
     }
 
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         match self {
             Maybe::Real(r) => handle_ebadf(r.read_vectored(bufs), 0),
-            Maybe::Fake => Ok(0),
         }
     }
 

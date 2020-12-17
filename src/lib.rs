@@ -1,7 +1,9 @@
 use std::io::{BufReader, IoSliceMut, Read, BufRead, Error, ErrorKind};
 use std::fs::File;
-use std::{io, fmt};
+use std::{io, fmt, result};
 use std::sync::{Mutex, Arc, MutexGuard};
+
+
 
 enum Maybe<T> {
     Real(T),
@@ -55,14 +57,73 @@ impl BufRead for TailedFileLock<'_> {
     }
 
     fn read_line(&mut self, buf: &mut String) -> io::Result<usize> {
+// Note that we are not calling the `.read_until` method here, but
+        // rather our hardcoded implementation. For more details as to why, see
+        // the comments in `read_to_end`.
+        append_to_string(buf, |b| read_until(self, b'\n', b))
 
-        let res = self.inner.read_line(buf);
-        let size : usize = 0;
-        if res.is_ok() && res.as_ref().unwrap() == &size {
-            return io::Result::Err(Error::new(ErrorKind::Interrupted, ""))
+    }
+}
+
+fn read_until<R: BufRead + ?Sized>(r: &mut R, delim: u8, buf: &mut Vec<u8>) -> Result<usize> {
+    let mut read = 0;
+    loop {
+        let (done, used) = {
+            let available = match r.fill_buf() {
+                Ok(n) if !n.is_empty() => n,
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
+                Err(e) => return Err(e),
+                _ => {continue}
+            };
+            match memchr::memchr(delim, available) {
+                Some(i) => {
+                    buf.extend_from_slice(&available[..=i]);
+                    (true, i + 1)
+                }
+                None => {
+                    buf.extend_from_slice(available);
+                    (false, available.len())
+                }
+            }
+        };
+        r.consume(used);
+        read += used;
+        if done || used == 0 {
+            return Ok(read);
         }
+    }
+}
 
-        res
+struct Guard<'a> {
+    buf: &'a mut Vec<u8>,
+    len: usize,
+}
+
+impl Drop for Guard<'_> {
+    fn drop(&mut self) {
+        unsafe {
+            self.buf.set_len(self.len);
+        }
+    }
+}
+
+
+pub type Result<T> = result::Result<T, Error>;
+fn append_to_string<F>(buf: &mut String, f: F) -> Result<usize>
+    where
+        F: FnOnce(&mut Vec<u8>) -> Result<usize>,
+{
+    unsafe {
+        let mut g = Guard { len: buf.len(), buf: buf.as_mut_vec() };
+        let ret = f(g.buf);
+        if std::str::from_utf8(&g.buf[g.len..]).is_err() {
+            ret.and_then(|_| {
+                Err(Error::new(ErrorKind::InvalidData, "stream did not contain valid UTF-8"))
+            })
+        } else {
+            g.len = g.buf.len();
+            ret
+        }
     }
 }
 

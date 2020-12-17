@@ -1,0 +1,12 @@
+[package]
+name = "fs-tail"
+version = "0.1.0"
+authors = ["avner <avner.barr@gmail.com>"]
+edition = "2018"
+license = "MIT"
+description = "tail a file and block when end of file is reached. When new contents are found in the file, the loop will continue"
+repository = "https://github.com/avnerbarr/fs-tail"
+keywords = ["file"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

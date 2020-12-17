@@ -144,7 +144,7 @@ fn handle_ebadf<T>(r: io::Result<T>, default: T) -> io::Result<T> {
 
     match r {
         // Err(ref e) if stdio::is_ebadf(e) => Ok(default),
-        Err(ref e) => Ok(default),
+        Err(ref _e) => Ok(default),
         r => r,
     }
 }

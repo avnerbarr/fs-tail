@@ -1,4 +1,4 @@
-use std::io::{BufReader, IoSliceMut, Read, BufRead, Error, ErrorKind};
+use std::io::{BufReader, IoSliceMut, Read, BufRead, Error, ErrorKind, Seek, SeekFrom};
 use std::fs::File;
 use std::{io, fmt, result};
 use std::sync::{Mutex, Arc, MutexGuard};
@@ -16,9 +16,11 @@ pub struct TailedFile {
 }
 
 impl TailedFile {
-    pub fn new(file: File) -> Self {
+    pub fn new(mut file: File) -> Self {
+        let _ = file.seek(SeekFrom::End(0));
+        let a  = BufReader::new(file);
         TailedFile {
-            inner: Arc::new(Mutex::new(BufReader::with_capacity(10000, Maybe::Real(TailedFileRaw(BufReader::new(file))))))
+            inner: Arc::new(Mutex::new(BufReader::with_capacity(10000, Maybe::Real(TailedFileRaw(a)))))
         }
 
     }

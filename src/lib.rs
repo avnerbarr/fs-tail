@@ -2,7 +2,8 @@ use std::io::{BufReader, IoSliceMut, Read, BufRead, Error, ErrorKind, Seek, Seek
 use std::fs::File;
 use std::{io, fmt, result};
 use std::sync::{Mutex, Arc, MutexGuard};
-
+use std::thread::sleep;
+use std::time::Duration;
 
 
 enum Maybe<T> {
@@ -73,7 +74,7 @@ fn read_until<R: BufRead + ?Sized>(r: &mut R, delim: u8, buf: &mut Vec<u8>) -> R
         let (done, used) = {
             let available = match r.fill_buf() {
                 Ok(n) if !n.is_empty() => n,
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {sleep(Duration::from_millis(1)); continue;},
                 Err(e) => return Err(e),
                 _ => {continue}
             };
